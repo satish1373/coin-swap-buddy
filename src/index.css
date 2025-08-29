@@ -8,33 +8,54 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    /* Primary brand colors - Financial theme */
+    --primary: 210 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 210 100% 60%;
+    --primary-dark: 210 100% 40%;
+    
+    /* Accent colors - Green for positive financial actions */
+    --accent: 142 76% 36%;
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 142 76% 46%;
+    
+    /* Background system */
+    --background: 210 20% 98%;
+    --background-secondary: 210 40% 96%;
+    --foreground: 215 25% 27%;
+    
+    /* Card system */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --card-foreground: 215 25% 27%;
+    --card-border: 210 20% 90%;
+    
+    /* Interactive elements */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --border: 210 20% 90%;
+    --input: 0 0% 100%;
+    --ring: 210 100% 50%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(210 100% 50%), hsl(180 100% 45%));
+    --gradient-secondary: linear-gradient(135deg, hsl(210 20% 98%), hsl(210 40% 96%));
+    --gradient-accent: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
+    
+    /* Shadows */
+    --shadow-soft: 0 1px 3px hsl(210 25% 27% / 0.1), 0 1px 2px hsl(210 25% 27% / 0.06);
+    --shadow-medium: 0 4px 6px hsl(210 25% 27% / 0.07), 0 2px 4px hsl(210 25% 27% / 0.06);
+    --shadow-large: 0 10px 15px hsl(210 25% 27% / 0.1), 0 4px 6px hsl(210 25% 27% / 0.05);
+    
+    /* Transitions */
+    --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Spacing */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
 
     --radius: 0.5rem;
 
