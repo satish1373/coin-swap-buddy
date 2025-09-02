@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -31,6 +32,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -54,15 +56,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('Sign in attempt for:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
+    console.log('Sign in result:', error ? 'error' : 'success', error?.message);
     return { error };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    // Clear local state immediately
+    setSession(null);
+    setUser(null);
   };
 
   const resetPassword = async (email: string) => {

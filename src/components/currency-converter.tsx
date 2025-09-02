@@ -139,7 +139,14 @@ export function CurrencyConverter() {
       }));
 
       setCustomCurrencies(customCurs);
-      setAllCurrencies([...defaultCurrencies, ...customCurs]);
+      
+      // Merge currencies and remove duplicates based on code
+      const allCurs = [...defaultCurrencies, ...customCurs];
+      const uniqueCurrencies = allCurs.filter((currency, index, self) => 
+        index === self.findIndex(c => c.code === currency.code)
+      );
+      
+      setAllCurrencies(uniqueCurrencies);
     } catch (error) {
       console.error('Error loading custom currencies:', error);
     }

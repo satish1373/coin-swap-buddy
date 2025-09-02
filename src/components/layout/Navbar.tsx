@@ -36,12 +36,24 @@ export function Navbar() {
   }, [user]);
 
   const handleSignOut = async () => {
-    await signOut();
-    toast({
-      title: "Signed out",
-      description: "You have been signed out successfully."
-    });
-    navigate('/auth');
+    try {
+      await signOut();
+      toast({
+        title: "Signed out",
+        description: "You have been signed out successfully."
+      });
+      // Give a small delay to ensure auth state is cleared
+      setTimeout(() => {
+        navigate('/auth');
+      }, 100);
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast({
+        title: "Error",
+        description: "There was an issue signing you out. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
