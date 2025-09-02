@@ -392,19 +392,19 @@ export function CurrencyConverter() {
                 <SelectTrigger className="w-[140px] bg-input border-border">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="w-[320px] bg-primary/10 backdrop-blur-sm border border-primary/20 shadow-large">
+                <SelectContent className="w-[320px] bg-primary text-primary-foreground border border-primary-dark shadow-large">
                   {allCurrencies.map((currency) => (
                     <SelectItem 
                       key={`from-${currency.code}`} 
                       value={currency.code}
-                      className="hover:bg-primary/20 focus:bg-primary/20"
+                      className="hover:bg-primary-light focus:bg-primary-light text-primary-foreground"
                     >
                       <div className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm min-w-[24px]">{currency.symbol}</span>
                           <span className="font-medium">{currency.code}</span>
                         </div>
-                        <span className="text-sm text-muted-foreground ml-4 truncate">
+                        <span className="text-sm text-primary-foreground/80 ml-4 truncate">
                           {currency.name}
                         </span>
                       </div>
@@ -449,19 +449,19 @@ export function CurrencyConverter() {
                 <SelectTrigger className="w-[140px] bg-input border-border">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="w-[320px] bg-primary/10 backdrop-blur-sm border border-primary/20 shadow-large">
+                <SelectContent className="w-[320px] bg-primary text-primary-foreground border border-primary-dark shadow-large">
                   {allCurrencies.map((currency) => (
                     <SelectItem 
                       key={`to-${currency.code}`} 
                       value={currency.code}
-                      className="hover:bg-primary/20 focus:bg-primary/20"
+                      className="hover:bg-primary-light focus:bg-primary-light text-primary-foreground"
                     >
                       <div className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm min-w-[24px]">{currency.symbol}</span>
                           <span className="font-medium">{currency.code}</span>
                         </div>
-                        <span className="text-sm text-muted-foreground ml-4 truncate">
+                        <span className="text-sm text-primary-foreground/80 ml-4 truncate">
                           {currency.name}
                         </span>
                       </div>
