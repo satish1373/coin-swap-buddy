@@ -392,9 +392,13 @@ export function CurrencyConverter() {
                 <SelectTrigger className="w-[140px] bg-input border-border">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="w-[320px]">
+                <SelectContent className="w-[320px] bg-primary/10 backdrop-blur-sm border border-primary/20 shadow-large">
                   {allCurrencies.map((currency) => (
-                    <SelectItem key={`from-${currency.code}`} value={currency.code}>
+                    <SelectItem 
+                      key={`from-${currency.code}`} 
+                      value={currency.code}
+                      className="hover:bg-primary/20 focus:bg-primary/20"
+                    >
                       <div className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm min-w-[24px]">{currency.symbol}</span>
@@ -445,9 +449,13 @@ export function CurrencyConverter() {
                 <SelectTrigger className="w-[140px] bg-input border-border">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="w-[320px]">
+                <SelectContent className="w-[320px] bg-primary/10 backdrop-blur-sm border border-primary/20 shadow-large">
                   {allCurrencies.map((currency) => (
-                    <SelectItem key={`to-${currency.code}`} value={currency.code}>
+                    <SelectItem 
+                      key={`to-${currency.code}`} 
+                      value={currency.code}
+                      className="hover:bg-primary/20 focus:bg-primary/20"
+                    >
                       <div className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm min-w-[24px]">{currency.symbol}</span>
