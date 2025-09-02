@@ -31,7 +31,7 @@ const defaultCurrencies = [
   { code: "HUF", name: "Hungarian Forint", symbol: "Ft" },
   { code: "RUB", name: "Russian Ruble", symbol: "₽" },
   { code: "BRL", name: "Brazilian Real", symbol: "R$" },
-  { code: "MXN", name: "Mexican Peso", symbol: "$" },
+  { code: "MXN", name: "Mexican Peso", symbol: "MX$" },
   { code: "ZAR", name: "South African Rand", symbol: "R" },
   { code: "TRY", name: "Turkish Lira", symbol: "₺" },
   { code: "ILS", name: "Israeli Shekel", symbol: "₪" },
@@ -389,17 +389,21 @@ export function CurrencyConverter() {
             </div>
             <div className="flex gap-2">
               <Select value={fromCurrency} onValueChange={setFromCurrency}>
-                <SelectTrigger className="w-[120px] bg-input border-border">
+                <SelectTrigger className="w-[140px] bg-input border-border">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="w-[320px]">
                   {allCurrencies.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code}>
-                      <span className="flex items-center gap-2">
-                        <span className="font-mono text-xs">{currency.symbol}</span>
-                        {currency.code}
-                        <span className="text-xs text-muted-foreground">({currency.name})</span>
-                      </span>
+                    <SelectItem key={`from-${currency.code}`} value={currency.code}>
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm min-w-[24px]">{currency.symbol}</span>
+                          <span className="font-medium">{currency.code}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground ml-4 truncate">
+                          {currency.name}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -438,17 +442,21 @@ export function CurrencyConverter() {
             </div>
             <div className="flex gap-2">
               <Select value={toCurrency} onValueChange={setToCurrency}>
-                <SelectTrigger className="w-[120px] bg-input border-border">
+                <SelectTrigger className="w-[140px] bg-input border-border">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="w-[320px]">
                   {allCurrencies.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code}>
-                      <span className="flex items-center gap-2">
-                        <span className="font-mono text-xs">{currency.symbol}</span>
-                        {currency.code}
-                        <span className="text-xs text-muted-foreground">({currency.name})</span>
-                      </span>
+                    <SelectItem key={`to-${currency.code}`} value={currency.code}>
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm min-w-[24px]">{currency.symbol}</span>
+                          <span className="font-medium">{currency.code}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground ml-4 truncate">
+                          {currency.name}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
