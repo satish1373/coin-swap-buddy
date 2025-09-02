@@ -1,1 +1,32 @@
 project_id = "ieojykmmchjdklbwzurd"
+
+[auth]
+enabled = true
+email_auth = true
+password_auth = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[db]
+port = 5432
+
+[studio]
+enabled = true
+port = 3000
+
+[inbucket]
+enabled = true
+port = 2500
+
+[storage]
+enabled = true
+
+[edge_runtime]
+enabled = true
+inspector_port = 8083
+
+[functions.exchange-rates]
+verify_jwt = false
