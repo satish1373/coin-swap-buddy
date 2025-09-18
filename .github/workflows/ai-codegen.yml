@@ -1,9 +1,8 @@
 name: AI Codegen from Issue
-
 on:
   issues:
-    types: [labeled]      # fire only when a label is added
-  workflow_dispatch:      # optional: run manually from Actions tab
+    types: [labeled]      # runs when a label is added
+  workflow_dispatch:      # also allow manual runs
 
 permissions:
   contents: write
@@ -11,16 +10,14 @@ permissions:
   issues: read
 
 jobs:
-  ai-codegen:
-    # Run when the newly added label is exactly "codegen"
-    if: github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'codegen' || github.event_name == 'workflow_dispatch'
+  codegen:
+    # run only when the newly added label is "codegen" OR manual run
+    if: (github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'codegen') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
 
       - name: Configure git user
         run: |
@@ -30,53 +27,38 @@ jobs:
       - name: Create feature branch
         id: branch
         run: |
-          SAFE_TITLE="$(echo "${{ github.event_name == 'workflow_dispatch' && 'manual-run' || github.event.issue.title }}" | tr ' ' '-' | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')"
+          TITLE="${{ github.event_name == 'workflow_dispatch' && 'manual-run' || github.event.issue.title }}"
+          SAFE_TITLE="$(echo "$TITLE" | tr ' ' '-' | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')"
           BR="feature/codegen-${SAFE_TITLE}-${{ github.event_name == 'workflow_dispatch' && 'manual' || github.event.issue.number }}"
           git checkout -b "$BR"
-          echo "branch=$BR" >> $GITHUB_OUTPUT
+          echo "BRANCH=$BR" >> $GITHUB_OUTPUT
 
-      - name: Use Node 20
-        uses: actions/setup-node@v4
+      # 🧠 Run Aider to make code changes based on the Issue text
+      - name: Apply changes with Aider
+        uses: mirrajabi/aider-github-action@v1.1.0
+        timeout-minutes: 15
         with:
-          node-version: '20'
-
-      - name: Install deps (if any)
-        run: |
-          if [ -f package.json ]; then
-            npm ci --ignore-scripts || npm i --ignore-scripts
-          fi
-
-      - name: Generate code with AI (repo-scoped)
-        uses: cognitivecomputations/ai-github-action@v1
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          mode: "repo"
-          instructions: |
-            You are scaffolding code for a React/TypeScript currency-converter app.
-            Use the GitHub Issue below as the single source of truth for requirements.
-            - Create or update files under src/ (or app/) only.
-            - Write modular, typed code; include minimal tests.
-            - Do not modify tooling, release, or CI configs.
-            - Keep external API keys/env names as placeholders (e.g., process.env.NEXT_PUBLIC_...)
+          api_key_env_name: OPENAI_API_KEY
+          api_key_env_value: ${{ secrets.OPENAI_API_KEY }}
+          branch: ${{ steps.branch.outputs.BRANCH }}
+          # Keep it safe & focused on your Lovable/React app
+          model: gpt-4o-mini
+          aider_args: >-
+            --yes
+            --message "You are adding/modifying code for a React/TypeScript currency-converter app.
+            Source of truth is the GitHub Issue below. Create or update files only under src/ or app/.
+            Keep behavior safe and typed. Add small tests when obvious. Do not touch tooling/CI configs.
             Issue Title: ${{ github.event.issue.title }}
             Issue Body:
-            ---
-            ${{ github.event.issue.body }}
-            ---
-          commit_changes: true
-          open_pull_request: false
+            ${{ github.event.issue.body }}"
 
       - name: Push branch
-        run: |
-          git push --set-upstream origin "${{ steps.branch.outputs.branch }}"
+        run: git push --set-upstream origin "${{ steps.branch.outputs.BRANCH }}"
 
       - name: Open pull request
         uses: peter-evans/create-pull-request@v6
         with:
-          commit-message: "AI codegen changes"
-          branch: "${{ steps.branch.outputs.branch }}"
+          branch: "${{ steps.branch.outputs.BRANCH }}"
           title: "AI codegen: ${{ github.event.issue.title }}"
           body: "Generated from issue #${{ github.event.issue.number }} (label: `codegen`). Please review carefully."
           base: "main"
