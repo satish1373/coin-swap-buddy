@@ -1,0 +1,83 @@
+name: AI Refactor
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "src/**"
+      - "app/**"
+      - "packages/**"
+      - "!**/*.md"
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ai-refactor:
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       contains(github.event.comment.body, '/refactor'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps (ignore scripts for safety)
+        run: |
+          if [ -f package.json ]; then
+            npm ci --ignore-scripts || npm i --ignore-scripts
+          fi
+
+      - name: Prettier & ESLint (non-blocking)
+        run: |
+          npx --yes prettier -w .
+          npx --yes eslint . --fix || true
+
+      # Optional codemods: place any jscodeshift transforms in scripts/codemods/
+      - name: Run codemods (best-effort)
+        run: |
+          if [ -d scripts/codemods ]; then
+            npx --yes jscodeshift -t scripts/codemods --extensions=tsx,ts,js,jsx src || true
+          fi
+
+      - name: AI review/refactor (PR-scoped)
+        uses: cognitivecomputations/ai-github-action@v1
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          mode: "pr"
+          instructions: |
+            You are a senior refactoring assistant for a React/TypeScript currency-converter app.
+            Goals:
+            - Keep behavior identical; do not change conversion logic or public APIs.
+            - Improve readability, modularity, and testability.
+            - Extract large components; add JSDoc/TSDoc where useful.
+            - Enforce consistent formatting and naming (camelCase for vars, PascalCase for components).
+            - Add lightweight unit tests where obvious.
+            - Summarize changes and rationale in PR comments.
+          commit_changes: true
+          open_pull_request: false
+
+      - name: Post run summary (always)
+        if: always()
+        run: |
+          echo "✅ AI refactor finished. Review the latest commits and PR comments." > body.txt
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            gh pr comment ${{ github.event.pull_request.number }} -F body.txt
+          else
+            gh pr comment ${{ github.event.issue.number }} -F body.txt
+          fi
