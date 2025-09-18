@@ -34,23 +34,71 @@ jobs:
           echo "BRANCH=$BR" >> $GITHUB_OUTPUT
 
       # 🧠 Run Aider to make code changes based on the Issue text
-      - name: Apply changes with Aider
+            # ── Attempt 1: OpenAI (current setup)
+      - name: Apply changes with Aider (OpenAI)
+        id: aider_openai
         uses: mirrajabi/aider-github-action@v1.1.0
-        timeout-minutes: 15
+        continue-on-error: true
         with:
           api_key_env_name: OPENAI_API_KEY
           api_key_env_value: ${{ secrets.OPENAI_API_KEY }}
-          branch: ${{ steps.branch.outputs.BRANCH }}
-          # Keep it safe & focused on your Lovable/React app
+          branch: ${{ steps.ctx.outputs.branch }}
           model: gpt-4o-mini
           aider_args: >-
             --yes
-            --message "You are adding/modifying code for a React/TypeScript currency-converter app.
-            Source of truth is the GitHub Issue below. Create or update files only under src/ or app/.
-            Keep behavior safe and typed. Add small tests when obvious. Do not touch tooling/CI configs.
-            Issue Title: ${{ github.event.issue.title }}
+            --message "You are updating a React/TypeScript currency-converter app (coin-swap-buddy).
+            Use the GitHub Issue below as the single source of truth.
+            Create or update files under src/ or app/ only.
+            Keep behavior safe and typed. Add small tests when obvious.
+            Do not modify CI/tooling.
+            Issue Title: ${{ steps.ctx.outputs.title }}
             Issue Body:
-            ${{ github.event.issue.body }}"
+            ${{ steps.ctx.outputs.body }}"
+
+      # ── Attempt 2: Gemini (only runs if OpenAI failed)
+      - name: Apply changes with Aider (Gemini fallback)
+        id: aider_gemini
+        if: steps.aider_openai.outcome == 'failure'
+        uses: mirrajabi/aider-github-action@v1.1.0
+        continue-on-error: true
+        with:
+          api_key_env_name: GEMINI_API_KEY
+          api_key_env_value: ${{ secrets.GEMINI_API_KEY }}
+          branch: ${{ steps.ctx.outputs.branch }}
+          model: gemini/gemini-1.5-flash-002
+          aider_args: >-
+            --yes
+            --message "You are updating a React/TypeScript currency-converter app (coin-swap-buddy).
+            Use the GitHub Issue below as the single source of truth.
+            Create or update files under src/ or app/ only.
+            Keep behavior safe and typed. Add small tests when obvious.
+            Do not modify CI/tooling.
+            Issue Title: ${{ steps.ctx.outputs.title }}
+            Issue Body:
+            ${{ steps.ctx.outputs.body }}"
+
+      # ── Attempt 3: Groq (only runs if both previous attempts failed)
+      - name: Apply changes with Aider (Groq fallback)
+        id: aider_groq
+        if: steps.aider_openai.outcome == 'failure' && steps.aider_gemini.outcome == 'failure'
+        uses: mirrajabi/aider-github-action@v1.1.0
+        continue-on-error: true
+        with:
+          api_key_env_name: GROQ_API_KEY
+          api_key_env_value: ${{ secrets.GROQ_API_KEY }}
+          branch: ${{ steps.ctx.outputs.branch }}
+          model: groq/llama-3.1-70b-versatile
+          aider_args: >-
+            --yes
+            --message "You are updating a React/TypeScript currency-converter app (coin-swap-buddy).
+            Use the GitHub Issue below as the single source of truth.
+            Create or update files under src/ or app/ only.
+            Keep behavior safe and typed. Add small tests when obvious.
+            Do not modify CI/tooling.
+            Issue Title: ${{ steps.ctx.outputs.title }}
+            Issue Body:
+            ${{ steps.ctx.outputs.body }}"
+
 
       - name: Push branch
         run: git push --set-upstream origin "${{ steps.branch.outputs.BRANCH }}"
