@@ -1,0 +1,78 @@
+name: AI Codegen from Issue
+
+on:
+  issues:
+    types: [opened, edited, labeled, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  ai-codegen:
+    if: contains(join(matrix.labels, ', '), 'codegen')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        labels: [ "${{ toJson(github.event.issue.labels.*.name) }}" ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create feature branch
+        id: branch
+        run: |
+          SAFE_TITLE="$(echo "${{ github.event.issue.title }}" | tr ' ' '-' | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')"
+          BR="feature/codegen-${SAFE_TITLE}-${{ github.event.issue.number }}"
+          git checkout -b "$BR"
+          echo "branch=$BR" >> $GITHUB_OUTPUT
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps (if any)
+        run: |
+          if [ -f package.json ]; then
+            npm ci --ignore-scripts || npm i --ignore-scripts
+          fi
+
+      - name: Generate code with AI (repo-scoped)
+        uses: cognitivecomputations/ai-github-action@v1
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          mode: "repo"
+          instructions: |
+            You are scaffolding code for a React/TypeScript currency-converter app.
+            Use the GitHub Issue below as the *single source of truth* for requirements.
+            - Create or update files under src/ (or app/) only.
+            - Write modular, typed code; include minimal tests.
+            - Do not modify tooling, release, or CI configs.
+            - Keep external API keys/env names as placeholders (e.g., process.env.NEXT_PUBLIC_...)
+            Issue Title: ${{ github.event.issue.title }}
+            Issue Body:
+            ---
+            ${{ github.event.issue.body }}
+            ---
+
+          commit_changes: true
+          open_pull_request: false
+
+      - name: Push branch
+        run: |
+          git push --set-upstream origin "${{ steps.branch.outputs.branch }}"
+
+      - name: Open PR
+        run: |
+          gh pr create \
+            --title "AI codegen: ${{ github.event.issue.title }}" \
+            --body "Generated from issue #${{ github.event.issue.number }} (label: codegen). Please review carefully." \
+            --base main \
+            --head "${{ steps.branch.outputs.branch }}"
