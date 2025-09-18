@@ -2,7 +2,8 @@ name: AI Codegen from Issue
 
 on:
   issues:
-    types: [opened, edited, labeled, reopened]
+    types: [labeled]      # fire only when a label is added
+  workflow_dispatch:      # optional: run manually from Actions tab
 
 permissions:
   contents: write
@@ -11,8 +12,8 @@ permissions:
 
 jobs:
   ai-codegen:
-    # ✅ Check the issue labels directly (no matrix needed)
-    if: contains(github.event.issue.labels.*.name, 'codegen')
+    # Run when the newly added label is exactly "codegen"
+    if: github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'codegen' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
@@ -29,8 +30,8 @@ jobs:
       - name: Create feature branch
         id: branch
         run: |
-          SAFE_TITLE="$(echo "${{ github.event.issue.title }}" | tr ' ' '-' | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')"
-          BR="feature/codegen-${SAFE_TITLE}-${{ github.event.issue.number }}"
+          SAFE_TITLE="$(echo "${{ github.event_name == 'workflow_dispatch' && 'manual-run' || github.event.issue.title }}" | tr ' ' '-' | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')"
+          BR="feature/codegen-${SAFE_TITLE}-${{ github.event_name == 'workflow_dispatch' && 'manual' || github.event.issue.number }}"
           git checkout -b "$BR"
           echo "branch=$BR" >> $GITHUB_OUTPUT
 
@@ -53,4 +54,29 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           mode: "repo"
           instructions: |
-            You are scaffolding code for a
+            You are scaffolding code for a React/TypeScript currency-converter app.
+            Use the GitHub Issue below as the single source of truth for requirements.
+            - Create or update files under src/ (or app/) only.
+            - Write modular, typed code; include minimal tests.
+            - Do not modify tooling, release, or CI configs.
+            - Keep external API keys/env names as placeholders (e.g., process.env.NEXT_PUBLIC_...)
+            Issue Title: ${{ github.event.issue.title }}
+            Issue Body:
+            ---
+            ${{ github.event.issue.body }}
+            ---
+          commit_changes: true
+          open_pull_request: false
+
+      - name: Push branch
+        run: |
+          git push --set-upstream origin "${{ steps.branch.outputs.branch }}"
+
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "AI codegen changes"
+          branch: "${{ steps.branch.outputs.branch }}"
+          title: "AI codegen: ${{ github.event.issue.title }}"
+          body: "Generated from issue #${{ github.event.issue.number }} (label: `codegen`). Please review carefully."
+          base: "main"
