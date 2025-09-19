@@ -1,0 +1,202 @@
+name: AI UI Refactor (UI components only)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "src/components/**"
+      - "app/components/**"
+      - "src/ui/**"
+      - "src/styles/**"
+      - "src/__tests__/**"
+      - "package.json"
+      - "package-lock.json"
+      - "pnpm-lock.yaml"
+      - "yarn.lock"
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ai-ui-refactor-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  ui-refactor:
+    # run on PR updates OR when someone comments "/refactor-ui" on a PR
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       contains(github.event.comment.body, '/refactor-ui'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref || github.event.issue.number }}
+
+      - name: Ensure we’re on the PR head ref
+        if: github.event_name == 'issue_comment'
+        run: |
+          PR_JSON=$(gh pr view ${{ github.event.issue.number }} --json headRefName)
+          BR=$(echo "$PR_JSON" | jq -r .headRefName)
+          git fetch origin "$BR"
+          git checkout "$BR"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Record base SHA (pre-AI)
+        id: base
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Node 20 + cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps (safe)
+        run: |
+          if [ -f package.json ]; then
+            npm ci --ignore-scripts || npm i --ignore-scripts
+          fi
+
+      - name: Prettier & ESLint (best-effort)
+        run: |
+          npx --yes prettier -w .
+          npx --yes eslint "src/**/*.{js,jsx,ts,tsx}" --fix || true
+
+      # ── AI refactor: UI scope + a11y/responsiveness focus
+      - name: Apply AI UI refactor with Aider (scoped)
+        id: aider
+        uses: mirrajabi/aider-github-action@v1.1.0
+        with:
+          api_key_env_name: OPENAI_API_KEY
+          api_key_env_value: ${{ secrets.OPENAI_API_KEY }}
+          branch: ${{ github.head_ref || '' }}
+          model: gpt-4o-mini
+          aider_args: >-
+            --yes
+            --map-tokens 512
+            --message "You are refactoring UI only for a React/TypeScript currency-converter app.
+            Strict rules:
+            • Only edit UI files: src/components/**, app/components/**, src/ui/**, src/styles/**, and tests in src/__tests__/**.
+            • Do NOT change business logic, API calls, conversion math, env usage, or project config/package files.
+            UI goals:
+            • Improve component structure, props typing, and readability.
+            • Ensure accessibility (labels, roles/ARIA, keyboard/tab order, focus states).
+            • Improve responsiveness (mobile-first), avoid layout shift, prefer semantic HTML.
+            • Keep existing visual design; fix obvious Tailwind/Styling issues.
+            • Add/adjust small, fast tests for simple UI behaviors where obvious.
+            Output: minimal safe diffs; summarize changes in a PR comment."
+
+      - name: Pull freshest PR branch
+        run: |
+          git fetch origin "${{ github.head_ref }}"
+          git checkout "${{ github.head_ref }}"
+          git pull --ff-only origin "${{ github.head_ref }}"
+
+      # ── Enforce UI-only scope (revert anything outside allowlist)
+      - name: Enforce UI scope
+        id: scope
+        run: |
+          set -e
+          BASE="${{ steps.base.outputs.sha }}"
+          CHANGED=$(git diff --name-only "$BASE"..HEAD || true)
+
+          ALLOW_PREFIXES=("src/components/" "app/components/" "src/ui/" "src/styles/" "src/__tests__/")
+          ALLOW_FILES=("package.json" "package-lock.json" "pnpm-lock.yaml" "yarn.lock")
+
+          DISALLOWED=()
+          for f in $CHANGED; do
+            ok=0
+            for g in "${ALLOW_FILES[@]}"; do
+              [ "$f" = "$g" ] && ok=1 && break
+            done
+            if [ $ok -eq 0 ]; then
+              for p in "${ALLOW_PREFIXES[@]}"; do
+                case "$f" in
+                  "$p"*) ok=1; break;;
+                esac
+              done
+            fi
+            [ $ok -eq 0 ] && DISALLOWED+=("$f")
+          done
+
+          if [ ${#DISALLOWED[@]} -gt 0 ]; then
+            echo "Out-of-scope changes:"
+            printf '%s\n' "${DISALLOWED[@]}"
+            for f in "${DISALLOWED[@]}"; do
+              if git cat-file -e "$BASE:$f" 2>/dev/null; then
+                git checkout "$BASE" -- "$f" || true
+              else
+                git rm -f -- "$f" || true
+              fi
+            done
+            if ! git diff --quiet --staged; then
+              git commit -m "Revert non-UI changes (guardrail)"
+              git push
+              echo "reverted=true" >> $GITHUB_OUTPUT
+            else
+              echo "reverted=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "reverted=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ── Detect & run tests (Vitest/Jest/npm test; else TS typecheck)
+      - name: Detect test command
+        id: tests
+        run: |
+          set -e
+          CMD=""
+          if [ -f package.json ]; then
+            if jq -e '.devDependencies.vitest // .dependencies.vitest' package.json >/dev/null 2>&1; then
+              CMD="npx vitest run --reporter=dot"
+            elif jq -e '.devDependencies.jest // .dependencies.jest' package.json >/dev/null 2>&1; then
+              CMD="npx jest --ci"
+            elif jq -e '.scripts.test' package.json >/dev/null 2>&1; then
+              CMD="npm test --silent"
+            fi
+          fi
+          if [ -z "$CMD" ] && [ -f tsconfig.json ]; then
+            CMD="npx tsc -p tsconfig.json --noEmit"
+          fi
+          echo "cmd=$CMD" >> $GITHUB_OUTPUT
+          [ -z "$CMD" ] && echo "No tests or typecheck detected; skipping."
+
+      - name: Run tests / typecheck
+        id: run_tests
+        continue-on-error: true
+        run: |
+          if [ -z "${{ steps.tests.outputs.cmd }}" ]; then
+            exit 0
+          fi
+          ${{ steps.tests.outputs.cmd }}
+
+      # ── If tests failed, revert AI changes from this run
+      - name: Auto-revert AI changes when tests fail
+        if: steps.run_tests.outcome == 'failure'
+        run: |
+          BASE="${{ steps.base.outputs.sha }}"
+          echo "Tests failed; reverting UI refactor to $BASE..."
+          git revert --no-commit "$BASE"..HEAD || true
+          git commit -m "Revert AI UI refactor due to failing tests"
+          git push
+
+      - name: Comment status on PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          STATUS=$([ "${{ steps.run_tests.outcome }}" = "success" ] && echo "✅" || echo "❌")
+          SCOPE=$([ "${{ steps.scope.outputs.reverted }}" = "true" ] && echo " • Non-UI edits reverted." || echo "")
+          NOTE=$([ "${{ steps.run_tests.outcome }}" = "failure" ] && echo " • Tests failed; UI changes reverted." || echo "")
+          printf "%s AI UI Refactor finished.%s%s\n" "$STATUS" "$SCOPE" "$NOTE" > body.txt
+          gh pr comment ${{ github.event.pull_request.number || github.event.issue.number }} -F body.txt
