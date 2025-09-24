@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - "*" # run for all branches
+  pull_request:
+    branches:
+      - "*" # run for all PRs
 
 jobs:
   build-deploy:
@@ -24,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # 4. Run tests
+      # 4. Run tests (skip if no tests exist)
       #- name: Run tests
       #  run: npm test
 
@@ -32,10 +35,16 @@ jobs:
       - name: Build app
         run: npm run build
 
-      # 6. Deploy Preview (any branch except main)
+      # 6. Deploy Preview (any branch except main) with safe truncated alias
       - name: Deploy Preview to Netlify
         if: github.ref != 'refs/heads/main'
-        run: npx netlify deploy --dir=dist --alias=${{ github.ref_name }}
+        id: deploy-preview
+        run: |
+          # Use branch name: remove non-alphanumeric chars, truncate to 30 chars
+          SAFE_ALIAS=$(echo "${GITHUB_REF_NAME}" | tr -cd '[:alnum:]-' | cut -c1-30)
+          echo "Deploying preview for branch: $SAFE_ALIAS"
+          URL=$(npx netlify deploy --dir=dist --alias=$SAFE_ALIAS --json | jq -r '.deploy_url')
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
@@ -43,7 +52,7 @@ jobs:
       # 7. Deploy Production (main branch only)
       - name: Deploy Production to Netlify
         if: github.ref == 'refs/heads/main'
-        run: npx netlify deploy --dir=dist --prod
+        run: npx netlify deploy --dir=dist --prod --json
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
