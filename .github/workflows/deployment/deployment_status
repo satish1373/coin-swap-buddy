@@ -1,0 +1,17 @@
+name: Deploy on GitHub Deployment
+on:
+  deployment:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & Deploy
+        run: |
+          # your build + release steps here
+      - name: Mark deployment success
+        uses: peter-evans/create-or-update-deployment-status@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          state: success
+          deployment-id: ${{ github.event.deployment.id }}
