@@ -1,0 +1,49 @@
+name: Netlify CI/CD
+
+on:
+  push:
+    branches:
+      - "*" # run for all branches
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Setup Node.js (adjust if using Python, Go, etc.)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # 4. Run tests
+      - name: Run tests
+        run: npm test
+
+      # 5. Build app
+      - name: Build app
+        run: npm run build
+
+      # 6. Deploy Preview (any branch except main)
+      - name: Deploy Preview to Netlify
+        if: github.ref != 'refs/heads/main'
+        run: npx netlify deploy --dir=dist --alias=${{ github.ref_name }}
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      # 7. Deploy Production (main branch only)
+      - name: Deploy Production to Netlify
+        if: github.ref == 'refs/heads/main'
+        run: npx netlify deploy --dir=dist --prod
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
